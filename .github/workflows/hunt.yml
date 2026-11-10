@@ -1,0 +1,82 @@
+name: Hunt & Deploy
+
+on:
+  schedule:
+    # 每 2 小时扫一次（UTC 偶数小时的 11 分）。GitHub 定时任务可能延迟几分钟。
+    - cron: "11 */2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ["hunter.db", "binance_dates.json"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: hunt
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect feeds
+        run: python collect.py
+
+      - name: Verify links
+        # A 403 from a site is recorded as blocked, not dead — never fails the job.
+        run: python verify.py --limit 80 --delay 0.3 || true
+
+      - name: Export static site
+        run: python export.py site
+
+      - name: Show board state
+        run: |
+          python - <<'PY'
+          import sqlite3
+          c = sqlite3.connect('hunter.db')
+          print('deals   ', c.execute("select count(*) from deal where status='active'").fetchone()[0])
+          print('expired ', c.execute("select count(*) from deal where status!='active'").fetchone()[0])
+          for cat, n in c.execute("select category, count(*) from deal where status='active' group by 1 order by 2 desc"):
+              print('  %-9s %d' % (cat, n))
+          PY
+
+      - name: Commit database
+        # The db is the data: without it the next run starts from zero and the
+        # board loses every "first seen" timestamp.
+        run: |
+          git config user.name  "deal-hunter-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add hunter.db binance_dates.json 2>/dev/null || git add hunter.db
+          git commit -m "data: $(date -u '+%F %H:%M') UTC" || echo "no data changes"
+          # 定时任务可能同时跑，push 前先 rebase 避免非快进被拒
+          for i in 1 2 3; do
+            if git pull --rebase --autostash origin main && git push; then
+              exit 0
+            fi
+            echo "push attempt $i failed, retrying"
+            sleep 5
+          done
+          echo "could not push db; site is still deployed"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: hunt
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
