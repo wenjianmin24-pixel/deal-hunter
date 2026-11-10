@@ -20,7 +20,10 @@ _CN = re.compile(r"(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]")
 CUE = re.compile(
     r"(?:\bends?\b|\bexpir\w*\b|\bdeadline\b|\bvalid (?:until|through)\b|"
     r"\boffer ends\b|\bpromotion ends\b|\bcollect until\b|\bcloses?\b|"
-    r"\buntil\b|\bthrough\b|截止|到期|活动时间|有效期|截止日期)", re.I)
+    r"\buntil\b|\bthrough\b|\bclaim (?:window|period)\b|"
+    r"\bwindow (?:opens?|closes?)\b|\bclaim (?:opens?|starts?)\b|"
+    r"\bregistration (?:window|period)\b|\bsnapshot\b|"
+    r"截止|到期|活动时间|有效期|截止日期|领取时间|活动期间)", re.I)
 
 # if the matched window contains these, it is very likely not an offer deadline
 ANTI = re.compile(
@@ -81,6 +84,24 @@ def _resolve(mm, dd, yy, now):
     return None
 
 
+_RANGE = re.compile(r"\s(?:to|until|through|till|-|–|—|至|到)\s|\s*(?:至|到)\s*", re.I)
+
+
+def _scan_range(seg):
+    """"04 Nov 2026 to 04 Dec 2026" is a window, and the deadline is its end."""
+    parts = _RANGE.split(seg)
+    if len(parts) < 2:
+        return None
+    got = _scan(parts[-1])
+    if got:
+        return got
+    if len(parts) >= 3:
+        got = _scan(parts[-2])
+        if got:
+            return got
+    return None
+
+
 def find(title, body, now=None):
     """Return YYYY-MM-DD or None. Requires a deadline cue near the date."""
     now = now or datetime.now(timezone.utc)
@@ -89,7 +110,7 @@ def find(title, body, now=None):
             seg = text[max(0, cue.start() - 40): cue.start() + 120]
             if ANTI.search(seg):
                 continue
-            got = _scan(seg)
+            got = _scan_range(seg) or _scan(seg)
             if not got:
                 continue
             return _resolve(got[0], got[1], got[2], now)
