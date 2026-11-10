@@ -76,6 +76,11 @@ def build(outdir):
     src = os.path.join(HERE, "index.html")
     with open(src, encoding="utf-8") as f:
         html = f.read()
+    # GitHub Pages serves data.js with Cache-Control: max-age=600, so a browser
+    # would keep showing yesterday's board for ten minutes after every deploy.
+    # A version query on the script tag makes each export load fresh data.
+    html = html.replace('<script src="data.js"></script>',
+                        '<script src="data.js?v=%d"></script>' % now)
     with open(os.path.join(outdir, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
     print("exported %d deals -> %s" % (len(deals), outdir))
