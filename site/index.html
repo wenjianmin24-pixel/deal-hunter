@@ -54,6 +54,7 @@
   .verified{color:var(--accent);font-size:11px}
   .unverified{color:var(--warn);font-size:11px}
   .blk{color:#8b949e;font-size:11px}
+  .req{color:#d29922;font-size:11px;margin-top:2px}
   .empty{padding:40px;text-align:center;color:var(--dim)}
   footer{padding:20px 24px;color:var(--dim);font-size:11.5px;border-top:1px solid var(--line)}
   @media(max-width:820px){ .hide-sm{display:none} .title{max-width:none} }
@@ -139,7 +140,9 @@ function render(){
             : '<span style="color:#484f58">未核</span>';
     return '<tr>'
       + '<td class="title"><a href="' + esc(d.official_url) + '" target="_blank" rel="noopener">'
-      + esc(d.title) + '</a><div class="src">' + esc(d.source_name) + '</div></td>'
+      + esc(d.title) + '</a><div class="src">' + esc(d.source_name) + '</div>'
+      + (d.requirements ? '<div class="req" title="领取条件（来自原文关键词，未逐条人工核对）">条件：' + esc(d.requirements) + '</div>' : '')
+      + '</td>'
       + '<td><span class="tag t-' + d.price_type + '">' + d.price_label + '</span></td>'
       + '<td class="hide-sm"><span class="val">' + (d.value ? esc(d.value) : '<span style="color:#484f58">—</span>') + '</span></td>'
       + '<td>' + dl + '</td>'

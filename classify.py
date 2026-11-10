@@ -189,6 +189,44 @@ RISK_RULES = [
 ]
 
 
+# ---------------------------------------------------------- requirements
+# The brief's most useful line is not the headline price but what claiming
+# costs you: a $300 bonus that needs a $500 direct deposit is not free. These
+# patterns turn the fine print into one short line per deal.
+REQ_RULES = [
+    (re.compile(r"\bnew (?:customers?|accounts?|members?|users?) only\b|"
+                r"\bfor new (?:customers?|accounts?)\b", re.I), "仅限新客户"),
+    (re.compile(r"\bexisting (?:customers?|members?)\b.*\bnot eligible\b", re.I), "老客户不可参加"),
+    (re.compile(r"\bstudents?\b|\beducation email\b|\.edu\b", re.I), "需学生身份/校园邮箱"),
+    (re.compile(r"\bdirect deposit\b|\bpayroll deposit\b", re.I), "需工资直存"),
+    (re.compile(r"\bminimum (?:deposit|balance) of \$?\d", re.I), "需最低存款/余额"),
+    (re.compile(r"\bspend \$?\d[\d,]*", re.I), "需消费满额"),
+    (re.compile(r"\btrading volume\b|\bvolume requirement\b", re.I), "需交易量"),
+    (re.compile(r"\b(?:hold|stake|lock) \$?\d", re.I), "需持仓/锁仓"),
+    (re.compile(r"\binvite[- ]only\b|\bby invitation\b|\binvitation only\b", re.I), "邀请制"),
+    (re.compile(r"\breferral code\b|\binvite code\b|\brefer a friend\b", re.I), "需邀请码/推荐人"),
+    (re.compile(r"\bselect (?:accounts?|members?|customers?)\b|\btargeted\b|\bYMMV\b", re.I), "仅部分账户可见"),
+    (re.compile(r"\b(?:US|United States) (?:residents?|only)\b|\bUS-only\b", re.I), "仅限美国"),
+    (re.compile(r"\b(?:UK|Canada|Australia|Germany) (?:residents?|only)\b", re.I), "仅限当地居民"),
+    (re.compile(r"\bKYC\b|\bverify (?:your )?identity\b", re.I), "需 KYC 实名"),
+    (re.compile(r"\b(?:first|1st) (?:deposit|purchase|order)\b", re.I), "仅首笔"),
+    (re.compile(r"\bauto[- ]?renew", re.I), "自动续费"),
+    (re.compile(r"\bnew subscribers? only\b", re.I), "仅限新订阅用户"),
+]
+
+
+def requirements(title, body=""):
+    """One short line of what the person must do or have. Empty when unknown."""
+    text = (title or "") + ". " + (body or "")
+    hits = []
+    for rx, label in REQ_RULES:
+        if rx.search(text) and label not in hits:
+            hits.append(label)
+        if len(hits) >= 3:
+            break
+    return " · ".join(hits)
+
+
 def risks(title, body):
     out = []
     for text in (title or "", body or ""):

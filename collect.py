@@ -238,7 +238,17 @@ def fresh(published, days=MAX_AGE_DAYS):
 
 
 def fingerprint(title):
-    t = WS_RE.sub(" ", re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", (title or "").lower())).strip()
+    """Stable id for an offer.
+
+    Titles are normalised first — case, punctuation, bracketed qualifiers like
+    "[YMMV]" and "Reg $100.00" tails — so the same offer reposted with a
+    different vendor's garnish does not enter twice.
+    """
+    t = (title or "").lower()
+    t = re.sub(r"\[[^\]]{0,20}\]|\([^)]{0,20}\)", " ", t)
+    t = re.sub(r"\b(?:reg|regular|was|now|ymmv|dp|sd|expired|dead|off)\b", " ", t)
+    t = re.sub(r"[^a-z0-9]+", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
     return hashlib.sha1(t[:120].encode("utf-8")).hexdigest()[:16]
 
 
@@ -310,7 +320,7 @@ def build(src, it):
                                    "other" if src.get("sale") else src["category"]),
         summary=body[:400],
         value=val, value_usd=usd,
-        requirements="",
+        requirements=classify.requirements(title, body),
         region=classify.region(title, body),
         starts_at=None,
         ends_at=deadline,

@@ -37,7 +37,7 @@ def build(outdir):
 
     deals = rows(c, """
         SELECT id,title,category,summary,value,value_usd,region,ends_at,
-               official_url,source_name,price_type,risk,score,status,
+               official_url,source_name,price_type,risk,score,status,requirements,
                first_seen,last_seen,last_verified,verify_status,verify_kind
         FROM deal ORDER BY score DESC, last_seen DESC LIMIT 1200""")
 

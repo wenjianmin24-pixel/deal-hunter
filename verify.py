@@ -41,6 +41,7 @@ OP = _opener()
 
 STATUS = {
     200: "ok",
+    201: "ok", 202: "ok", 203: "ok", 204: "ok", 206: "ok",
     401: "blocked",   # site refuses non-browser clients; not evidence the offer died
     403: "blocked",
     429: "blocked",
@@ -52,6 +53,9 @@ STATUS = {
 
 
 def classify(status):
+    # Any 2xx means the page answered; Binance's announcement pages reply 202.
+    if 200 <= int(status or 0) < 300:
+        return "ok"
     return STATUS.get(status, "error")
 
 
@@ -85,15 +89,16 @@ def run(limit=200, only_new=True, delay=0.4):
                   (now, status, classify(status), final, row["id"]))
         c.execute("INSERT OR REPLACE INTO verify_log(deal_id, at, status, final_url) VALUES(?,?,?,?)",
                   (row["id"], now, status, final))
-        if status == 200:
+        kind = classify(status)
+        if kind == "ok":
             ok += 1
         else:
             bad += 1
-            print("  %-11s %-3d %s" % (classify(status), status, row["official_url"][:88]))
+            print("  %-11s %-3d %s" % (kind, status, row["official_url"][:88]))
         c.commit()
         time.sleep(delay)
     c.close()
-    print("verified: ok=%d failed=%d (of %d)" % (ok, bad, len(todo)))
+    print("verified: ok=%d not-ok=%d (of %d)" % (ok, bad, len(todo)))
     return ok, bad
 
 
